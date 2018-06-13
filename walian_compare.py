@@ -1,10 +1,12 @@
+# -*- coding:utf-8 -*-
+
 import unittest
 from HTMLTestRunner import HTMLTestRunner
 import schedule
 import time
 from bs4 import BeautifulSoup
 import walian
-
+import DingTalk_link
 
 class walian_data_update(unittest.TestCase):
 
@@ -29,7 +31,7 @@ class walian_data_update(unittest.TestCase):
                        (coin_data[0]['nowPrice'] != coin_data[2]['nowPrice']) or \
                        (coin_data[0]['nowPrice'] != coin_data[3]['nowPrice'])
                 # 断言
-                assert flag, (name + ' 货币实时价格 没有更新 ' + coin_data[0]['nowPrice'])
+                assert flag, ('Waring: ' + name + u' 货币实时价格 没有更新 ' + str(coin_data[0]['nowPrice']))
 
     # cointradeinfo 对比（6小时更新）
     def test_cointrade_data(self):
@@ -49,7 +51,7 @@ class walian_data_update(unittest.TestCase):
                    (trade_data[0]['volume'] != trade_data[1]['volume'])
 
             # 断言
-            assert flag, (name + ' 货币交易数据 没有更新')
+            assert flag, ('Waring: ' + name + u' 货币交易数据 没有更新')
 
     # exchanginfo 对比（半小时更新）
     def test_exchang_data(self):
@@ -69,15 +71,15 @@ class walian_data_update(unittest.TestCase):
             # 查上一次的交易所数据
             exchang_data = wa.find_walian('exchangInfo_5', {'coinName': name})
 
+            wa.save_walian('exchangInfo', exchang_save)
+
             c_exchang = [exchang_data[0]['marketName'], exchang_data[1]['marketName'], exchang_data[2]['marketName'],
                          exchang_data[3]['marketName'], exchang_data[4]['marketName']]
 
             # 上一次的5个交易所和这次的是否一致
             if c_exchang == exchang:
 
-                wa.save_walian('exchangInfo', exchang_save)
                 for j in exchang:
-
                     # 查找对比
                     exchangs_data = wa.find_walian('exchangInfo_2', {'coinName': name, 'marketName': j})
                     flag = (exchangs_data[0]['newestTransactionPrice'] != exchangs_data[1]['newestTransactionPrice']) or \
@@ -86,10 +88,7 @@ class walian_data_update(unittest.TestCase):
                            (exchangs_data[0]['h24TransactionAmout'] != exchangs_data[1]['h24TransactionAmout'])
 
                     # 断言
-                    assert flag, (name + j + ' 交易所数据 没有更新')
-
-            else:
-                wa.save_walian('exchangInfo', exchang_save)
+                    assert flag, ('Waring: ' + name + j + u' 交易所数据 没有更新')
 
     # walianinfo  对比（6小时更新）
     def test_walianindex_data(self):
@@ -110,29 +109,38 @@ class walian_data_update(unittest.TestCase):
                    (walian_data[0]['controlIndex'] != walian_data[1]['controlIndex'])
 
             # 断言
-            assert flag, (name + ' 挖链指数 没有更新')
+            assert flag, ('Waring: ' + name + u' 挖链指数 没有更新')
 
 
 if __name__ == '__main__':
+
+    url = 'https://oapi.dingtalk.com/robot/send?' \
+          'access_token=15cef87df0d5c4aa60adf70c893840cba2b645855f68a2e6c3aaac48eac87f8f'
+    ding = DingTalk_link.DingTalk_sendMessage(url)
+
 
     def run_coinprice():
         testsuite = unittest.TestSuite()
         testsuite.addTest(walian_data_update('test_coinprice_data'))
 
-        with open('D:\\result.html', 'wb') as report:
-            runner = HTMLTestRunner(stream=report, title='挖链实时数据对比', verbosity=2)
+        with open('result.html', 'wb') as report:
+            runner = HTMLTestRunner(stream=report, title=u'挖链实时数据对比', verbosity=2)
             runner.run(testsuite)
 
-        html = open('D:\\result.html', encoding='utf-8')
+        html = open('result.html')
         soup = BeautifulSoup(html.read(), 'lxml')
         td = soup.find(name='tr', id='total_row').find_all(name='td')
         if td[3].text != '0' or td[4].text != '0':
+            # 获取错误信息
             content = soup.find(name='pre').text
-            index = content.rfind('Error')
-            errorinfo = content[index:len(content)]
+            # 去除空白
+            result = content.strip()
+            # 找到错误信息
+            index = result.rfind('Error')
+            errorinfo = result[(index + 6):len(result)].decode("unicode-escape")
 
-            x = walian.waliandata_save()
-            x.send_email(title='实时价格', content=errorinfo)
+            # 发送钉钉
+            ding.send_text_message(errorinfo)
 
         html.close()
 
@@ -142,20 +150,19 @@ if __name__ == '__main__':
         testsuite.addTest(walian_data_update('test_cointrade_data'))
         testsuite.addTest(walian_data_update('test_walianindex_data'))
 
-        with open('D:\\result1.html', 'wb') as report:
-            runner = HTMLTestRunner(stream=report, title='挖链实时数据对比', verbosity=2)
+        with open('result1.html', 'wb') as report:
+            runner = HTMLTestRunner(stream=report, title=u'挖链实时数据对比', verbosity=2)
             runner.run(testsuite)
 
-        html = open('D:\\result1.html', encoding='utf-8')
+        html = open('result1.html')
         soup = BeautifulSoup(html.read(), 'lxml')
         td = soup.find(name='tr', id='total_row').find_all(name='td')
         if td[3].text != '0' or td[4].text != '0':
             content = soup.find(name='pre').text
-            index = content.rfind('Error')
-            errorinfo = content[index:len(content)]
-
-            x = walian.waliandata_save()
-            x.send_email(title='货币24h交易信息以及挖链指数', content=errorinfo)
+            result = content.strip()
+            index = result.rfind('Error')
+            errorinfo = result[(index + 6):len(result)].decode("unicode-escape")
+            ding.send_text_message(errorinfo)
 
         html.close()
 
@@ -164,27 +171,26 @@ if __name__ == '__main__':
         testsuite = unittest.TestSuite()
         testsuite.addTest(walian_data_update('test_exchang_data'))
 
-        with open('D:\\result2.html', 'wb') as report:
-            runner = HTMLTestRunner(stream=report, title='挖链实时数据对比', verbosity=2)
+        with open('result2.html', 'wb') as report:
+            runner = HTMLTestRunner(stream=report, title=u'挖链实时数据对比', verbosity=2)
             runner.run(testsuite)
 
-        html = open('D:\\result2.html', encoding='utf-8')
+        html = open('result2.html')
         soup = BeautifulSoup(html.read(), 'lxml')
         td = soup.find(name='tr', id='total_row').find_all(name='td')
         if td[3].text != '0' or td[4].text != '0':
             content = soup.find(name='pre').text
-            index = content.rfind('Error')
-            errorinfo = content[index:len(content)]
-
-            x = walian.waliandata_save()
-            x.send_email(title='交易所数据信息', content=errorinfo)
+            result = content.strip()
+            index = result.rfind('Error')
+            errorinfo = result[(index + 6):len(result)].decode("unicode-escape")
+            ding.send_text_message(errorinfo)
 
         html.close()
 
 
-    schedule.every(3).minutes.do(run_coinprice)
-    schedule.every(30).minutes.do(run_exchang)
-    schedule.every(6).hours.do(run_cointrade)
+    schedule.every(3).seconds.do(run_coinprice)
+    schedule.every(30).seconds.do(run_exchang)
+    schedule.every(6).seconds.do(run_cointrade)
 
     while True:
         schedule.run_pending()

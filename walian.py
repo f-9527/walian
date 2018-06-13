@@ -1,7 +1,12 @@
+# -*- coding:utf-8 -*-
+
+
 from pymongo import MongoClient
 import requests
 import time
-import zmail
+import DingTalk_link
+
+# import zmail
 
 
 class waliandata_save():
@@ -21,7 +26,6 @@ class waliandata_save():
         info = []
         for i in self.para:
             url = self.coindata_url + '?en_name=' + i
-            # print(url)
 
             connect = requests.post(url)
 
@@ -35,6 +39,11 @@ class waliandata_save():
                         del coin_info[key]
                 coin_info['date'] = (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
                 info.append(coin_info)
+            else:
+
+                ding = DingTalk_link.DingTalk_sendMessage()
+                message = ' Waring: 网络连接失败'
+                ding.send_text_message(message)
 
         # print(info)
         return info
@@ -55,6 +64,11 @@ class waliandata_save():
                 coin_info['date'] = (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
                 info.append(coin_info)
 
+            else:
+
+                ding = DingTalk_link.DingTalk_sendMessage()
+                message = ' Waring: 网络连接失败'
+                ding.send_text_message(message)
         # print(info)
         return info
 
@@ -74,14 +88,19 @@ class waliandata_save():
                 exchang_info['date'] = (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
                 exchang_info['coinName'] = i
                 info.append(exchang_info)
+
+            else:
+
+                ding = DingTalk_link.DingTalk_sendMessage()
+                message = ' Waring: 网络连接失败'
+                ding.send_text_message(message)
         # print(info)
         return info
 
-    # 抓取交易所信息：交易所（marketName），最新成交价（newestTransactionPrice），24h最高（h24PriceMax），24 h最低（h24PriceMin）
-    # 24h成交量（h24TransactionAmout）。
+    # 抓取交易所信息：交易所，最新成交价（newestTransactionPrice），24h最高（h24PriceMax），24 h最低（h24PriceMin）24h成交量
+
     def get_exchang_info(self, coinName):
         info = []
-
         connect = requests.post(self.coindata_url + '?en_name=' + coinName)
 
         if connect.status_code == 200:
@@ -93,8 +112,14 @@ class waliandata_save():
                 j['coinName'] = coinName
                 del j['svg']
                 info.append(j)
+
             # print(info)
             return info
+
+        else:
+            ding = DingTalk_link.DingTalk_sendMessage()
+            message = ' Waring: 网络连接失败'
+            ding.send_text_message(message)
 
     # 存储数据到数据库walian中的cionInfo表,exchangInfo表,walianInfo表
     def save_walian(self, biao, data):
@@ -115,17 +140,6 @@ class waliandata_save():
             collectinon = conn.tradeInfo
             collectinon.insert(data)
 
-    # # 存储数据到exchangInfo表
-    # def save_exchangInfo(self, data):
-    #     conn = MongoClient(self.database).walian
-    #     windex = conn.exchangInfo
-    #     windex.insert(data)
-    #
-    # # 存储数据到walianInfo表
-    # def save_walianInfo(self, data):
-    #     conn = MongoClient(self.database).walian
-    #     windex = conn.walianInfo
-    #     windex.insert(data)
 
     # 查询数据库walian
     def find_walian(self, biao, shuju):
@@ -157,17 +171,17 @@ class waliandata_save():
             data = collectinon.find(shuju).sort([('date', -1)]).limit(2)
             return data
 
-    def send_email(self, title, content):
-        server = zmail.server('fuzhengguo789@163.com', '123qwertyuiop')
-        mail_content = {
-            # 邮件标题
-            'subject': title,
-            # 邮件内容
-            'content': content
-
-        }
-
-        server.send_mail(['fuzhengguo789@163.com', 'yangyefeng@xiaochong.com', 'lisongping@xiaochong.com'],
-                         mail_content)
-
-        return '发送成功'
+    # def send_email(self, title, content):
+    #     server = zmail.server('fuzhengguo789@163.com', '123qwertyuiop')
+    #     mail_content = {
+    #         # 邮件标题
+    #         'subject': title,
+    #         # 邮件内容
+    #         'content': content
+    #
+    #     }
+    #
+    #     server.send_mail(['fuzhengguo789@163.com', 'yangyefeng@xiaochong.com', 'lisongping@xiaochong.com'],
+    #                      mail_content)
+    #
+    #     return '发送成功'
